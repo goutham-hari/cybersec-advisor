@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberSec Advisor</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">&gt;_</span>
+        <span class="brand-name">CyberSec Advisor</span>
+      </div>
+      <div class="status" id="status">
+        <span class="dot"></span> local knowledge base
+      </div>
+    </header>
+
+    <main class="chat" id="chat">
+      <div class="msg system">
+        <div class="msg-label">system</div>
+        <div class="msg-body">
+          Ready. Ask about offensive tradecraft, defensive operations,
+          architecture, or secure development. Answers are grounded in your
+          ingested book library where relevant, with citations.
+        </div>
+      </div>
+    </main>
+
+    <form class="composer" id="composer">
+      <textarea
+        id="question"
+        placeholder="Ask a technical question..."
+        rows="1"
+        autofocus
+      ></textarea>
+      <button type="submit" id="send-btn">
+        <span class="send-label">Ask</span>
+      </button>
+    </form>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
