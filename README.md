@@ -1,4 +1,26 @@
-# CyberSec Advisor — Web UI (local, free)
+# CyberSec Advisor
+
+A local-first, retrieval-augmented chatbot for cybersecurity research and study.
+
+CyberSec Advisor ingests your own library of security books (pentesting,
+malware analysis, network defense, cryptography, governance) into a local
+vector database, then answers technical questions grounded in that material
+— with citations back to the specific book and page.
+
+The entire pipeline — PDF extraction, chunking, embedding, and storage —
+runs locally on modest hardware. Only the final answer-generation step
+calls an external LLM API (free tier), keeping the whole project at zero
+infrastructure cost.
+
+## Features
+- 📚 Ingests PDF technical references into a searchable knowledge base
+- 🔍 Retrieval-augmented answers with book/page citations
+- 💻 Runs locally — no paid infrastructure required
+- 🌐 Clean browser-based chat interface
+- 🧠 Local embeddings (no per-query embedding cost)
+
+## Tech stack
+PyMuPDF · Sentence-Transformers · ChromaDB · Flask · Gemini API
 
 ## One-time setup
 
