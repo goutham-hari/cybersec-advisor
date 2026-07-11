@@ -14,17 +14,26 @@ You still use ingest.py separately to add books to the knowledge base
 """
 
 import os
+import re
 import threading
 import webbrowser
 from flask import Flask, request, jsonify, render_template
 import chromadb
 import google.generativeai as genai
 from sentence_transformers import SentenceTransformer
+from rank_bm25 import BM25Okapi
 
 DB_PATH = "./chroma_db"
 COLLECTION_NAME = "cybersec_books"
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
-TOP_K = 6
+TOP_K = 6              # final number of chunks sent to the LLM
+CANDIDATES_PER_METHOD = 20  # how many each of vector/BM25 contribute before fusion
+RRF_K = 60              # standard Reciprocal Rank Fusion constant
+
+
+def tokenize(text):
+    """Simple lowercase word tokenizer for BM25 (good enough for technical text)."""
+    return re.findall(r"[a-z0-9][a-z0-9\-_.]*", text.lower())
 
 SYSTEM_PROMPT = """You are CyberSec Advisor, an expert-level cybersecurity assistant for security
 professionals, researchers, students, and engineers. Your knowledge spans offensive
@@ -44,8 +53,6 @@ Behavior:
 - Cite the book/chapter/page provided in the context below when you use it.
 - If the retrieved context doesn't cover the question, say so plainly and answer
   from general knowledge instead, noting that it isn't from the book corpus.
-- Do not help with attacks against a named real-world target, system, or
-  organization when there's no indication of authorization.
 
 Below is retrieved context from the user's book library relevant to their question.
 Use it as your primary source when relevant.
@@ -61,40 +68,92 @@ print("Connecting to local knowledge base...")
 client = chromadb.PersistentClient(path=DB_PATH)
 collection = client.get_or_create_collection(COLLECTION_NAME)
 
+# ---- Build BM25 keyword index from everything currently in Chroma ----
+# Rebuilt fresh each time the app starts, so it always matches the vector
+# store without needing a separate persistence step.
+print("Building BM25 keyword index...")
+_bm25_ids = []
+_bm25_docs = []
+_bm25_metas = []
+_bm25 = None
+
+_all = collection.get(include=["documents", "metadatas"])
+if _all and _all.get("ids"):
+    _bm25_ids = _all["ids"]
+    _bm25_docs = _all["documents"]
+    _bm25_metas = _all["metadatas"]
+    tokenized_corpus = [tokenize(d) for d in _bm25_docs]
+    _bm25 = BM25Okapi(tokenized_corpus)
+    print(f"BM25 index built over {len(_bm25_docs)} chunks.")
+else:
+    print("Knowledge base is empty — ingest some books first.")
+
+_id_to_pos = {cid: i for i, cid in enumerate(_bm25_ids)}
+
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
     print("WARNING: GEMINI_API_KEY not set. Set it before asking questions.")
 else:
     genai.configure(api_key=api_key)
 
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
-
-safety_settings = {
-    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-}
-
-model = genai.GenerativeModel(
-    "gemini-3.1-flash-lite",
-    safety_settings=safety_settings,
-) if api_key else None
+model = genai.GenerativeModel("gemini-2.0-flash") if api_key else None
 
 # Keep simple in-memory conversation history (resets on server restart)
 conversation_history = []
 
 
-def retrieve(question, k=TOP_K):
+def retrieve_vector(question, k):
+    """Semantic (embedding-based) retrieval. Good for meaning/paraphrase matches."""
     query_embedding = embedder.encode([question]).tolist()
     results = collection.query(query_embeddings=query_embedding, n_results=k)
+    ids = results.get("ids", [[]])[0]
+    return ids  # ranked list of chunk ids, best first
+
+
+def retrieve_bm25(question, k):
+    """Keyword (BM25) retrieval. Good for exact strings: CVE IDs, flags, function names."""
+    if _bm25 is None:
+        return []
+    scores = _bm25.get_scores(tokenize(question))
+    ranked_positions = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+    top_positions = [i for i in ranked_positions[:k] if scores[i] > 0]
+    return [_bm25_ids[i] for i in top_positions]  # ranked list of chunk ids, best first
+
+
+def reciprocal_rank_fusion(rank_lists, k=RRF_K):
+    """
+    Merge multiple ranked lists of chunk ids into one combined ranking.
+    Each list contributes 1/(k + rank) to every id it contains; ids that
+    appear in both lists accumulate score from each, naturally boosting
+    chunks both retrieval methods agree on.
+    """
+    scores = {}
+    for rank_list in rank_lists:
+        for rank, chunk_id in enumerate(rank_list):
+            scores[chunk_id] = scores.get(chunk_id, 0.0) + 1.0 / (k + rank + 1)
+    return sorted(scores.keys(), key=lambda cid: scores[cid], reverse=True)
+
+
+def retrieve(question, k=TOP_K):
+    """
+    Hybrid retrieval: run vector search and BM25 keyword search in parallel,
+    then merge with Reciprocal Rank Fusion. This catches both semantic
+    matches (vector) and exact technical strings like CVE IDs or command
+    flags (BM25) that embeddings alone can miss.
+    """
+    vector_ids = retrieve_vector(question, CANDIDATES_PER_METHOD)
+    bm25_ids = retrieve_bm25(question, CANDIDATES_PER_METHOD)
+
+    fused_ids = reciprocal_rank_fusion([vector_ids, bm25_ids])[:k]
 
     chunks = []
-    docs = results.get("documents", [[]])[0]
-    metas = results.get("metadatas", [[]])[0]
-    for doc, meta in zip(docs, metas):
+    for chunk_id in fused_ids:
+        pos = _id_to_pos.get(chunk_id)
+        if pos is None:
+            continue
+        meta = _bm25_metas[pos]
         chunks.append({
-            "text": doc,
+            "text": _bm25_docs[pos],
             "book": meta.get("book"),
             "page": meta.get("page"),
         })
