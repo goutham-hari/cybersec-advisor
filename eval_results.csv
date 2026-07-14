@@ -1,0 +1,4 @@
+method,MRR,HitRate@1,HitRate@3,HitRate@6,Precision@1,Precision@3,Precision@6
+Vector-only,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+BM25-only,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+Hybrid (RRF),0.0,0.0,0.0,0.0,0.0,0.0,0.0

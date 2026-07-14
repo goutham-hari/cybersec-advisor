@@ -1,0 +1,37 @@
+[
+  {
+    "question": "What is SQL injection and how does it exploit unsanitized input?",
+    "expected_book": "The Web Application Hacker's Handbook",
+    "expected_page": 312,
+    "page_tolerance": 2,
+    "notes": "REPLACE: pick a real question, then Ctrl+F the term in your PDF to find the actual page it's discussed on."
+  },
+  {
+    "question": "How do you build a basic port scanner using Python sockets?",
+    "expected_book": "Black Hat Python",
+    "expected_page": 45,
+    "page_tolerance": 2,
+    "notes": "REPLACE with a real page number from your copy of the book."
+  },
+  {
+    "question": "What is CVE-2017-5638 and what does it affect?",
+    "expected_book": "Practical Malware Analysis",
+    "expected_page": 88,
+    "page_tolerance": 2,
+    "notes": "REPLACE. Good candidate for testing BM25 specifically — exact CVE strings are where keyword search should outperform pure vector search."
+  },
+  {
+    "question": "Explain the difference between symmetric and asymmetric encryption.",
+    "expected_book": "Security Engineering",
+    "expected_page": 130,
+    "page_tolerance": 3,
+    "notes": "REPLACE."
+  },
+  {
+    "question": "What is the NIST Cybersecurity Framework's Identify function?",
+    "expected_book": "NIST CSF",
+    "expected_page": 12,
+    "page_tolerance": 1,
+    "notes": "REPLACE."
+  }
+]
