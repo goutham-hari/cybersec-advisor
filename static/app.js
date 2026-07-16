@@ -2,6 +2,7 @@ const chat = document.getElementById('chat');
 const form = document.getElementById('composer');
 const input = document.getElementById('question');
 const sendBtn = document.getElementById('send-btn');
+const resetBtn = document.getElementById('reset-btn');
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -87,4 +88,17 @@ input.addEventListener('keydown', (e) => {
 input.addEventListener('input', () => {
   input.style.height = 'auto';
   input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+});
+
+resetBtn.addEventListener('click', async () => {
+  resetBtn.disabled = true;
+  try {
+    await fetch('/api/reset', { method: 'POST' });
+  } catch (err) {
+    // even if the request fails, still clear the visible chat locally
+  }
+  chat.innerHTML = '';
+  addMessage('system', 'New conversation started. Previous context has been cleared.');
+  resetBtn.disabled = false;
+  input.focus();
 });

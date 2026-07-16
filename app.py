@@ -53,6 +53,8 @@ Behavior:
 - Cite the book/chapter/page provided in the context below when you use it.
 - If the retrieved context doesn't cover the question, say so plainly and answer
   from general knowledge instead, noting that it isn't from the book corpus.
+- Do not help with attacks against a named real-world target, system, or
+  organization when there's no indication of authorization.
 
 Below is retrieved context from the user's book library relevant to their question.
 Use it as your primary source when relevant.
@@ -96,10 +98,24 @@ if not api_key:
 else:
     genai.configure(api_key=api_key)
 
-model = genai.GenerativeModel("gemini-3.1-flash-lite") if api_key else None
+model = genai.GenerativeModel(
+    "gemini-3.1-flash-lite",
+    system_instruction=SYSTEM_PROMPT,
+) if api_key else None
 
-# Keep simple in-memory conversation history (resets on server restart)
-conversation_history = []
+# ---- Conversation memory ----
+# A single ongoing chat session, kept in memory only (resets when the server
+# restarts, or when the user clicks "New conversation" in the UI). This lets
+# follow-up questions like "explain more about that" work, since Gemini's
+# chat session automatically carries prior turns as context.
+chat_session = None
+
+
+def get_chat_session():
+    global chat_session
+    if chat_session is None:
+        chat_session = model.start_chat(history=[])
+    return chat_session
 
 
 def retrieve_vector(question, k):
@@ -180,10 +196,14 @@ def ask():
         f"[{c['book']}, p.{c['page']}]\n{c['text']}" for c in chunks
     ) if chunks else "(no relevant chunks found in knowledge base)"
 
-    full_prompt = f"{SYSTEM_PROMPT}\n\n=== RETRIEVED CONTEXT ===\n{context_str}\n\n=== QUESTION ===\n{question}"
+    # The system prompt is already attached to the model via system_instruction,
+    # so each turn only needs the retrieved context + the new question. Prior
+    # turns are carried automatically by the chat session.
+    turn_message = f"=== RETRIEVED CONTEXT ===\n{context_str}\n\n=== QUESTION ===\n{question}"
 
     try:
-        response = model.generate_content(full_prompt)
+        chat = get_chat_session()
+        response = chat.send_message(turn_message)
         answer = response.text
     except Exception as e:
         return jsonify({"error": f"Gemini API error: {str(e)}"}), 500
@@ -191,6 +211,14 @@ def ask():
     sources = [{"book": c["book"], "page": c["page"]} for c in chunks]
 
     return jsonify({"answer": answer, "sources": sources})
+
+
+@app.route("/api/reset", methods=["POST"])
+def reset():
+    """Start a fresh conversation, discarding prior turns' memory."""
+    global chat_session
+    chat_session = None
+    return jsonify({"status": "reset"})
 
 
 def open_browser_window():
