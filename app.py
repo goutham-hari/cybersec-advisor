@@ -17,7 +17,7 @@ import os
 import re
 import threading
 import webbrowser
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory, abort
 import chromadb
 import google.generativeai as genai
 from sentence_transformers import SentenceTransformer
@@ -29,6 +29,7 @@ EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 TOP_K = 6              # final number of chunks sent to the LLM
 CANDIDATES_PER_METHOD = 20  # how many each of vector/BM25 contribute before fusion
 RRF_K = 60              # standard Reciprocal Rank Fusion constant
+FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "CyberSec-Advisor", "dist")
 
 
 def tokenize(text):
@@ -178,7 +179,34 @@ def retrieve(question, k=TOP_K):
 
 @app.route("/")
 def index():
+    dist_index = os.path.join(FRONTEND_DIST, "index.html")
+    if os.path.exists(dist_index):
+        return send_from_directory(FRONTEND_DIST, "index.html")
     return render_template("index.html")
+
+
+@app.route("/assets/<path:filename>")
+def frontend_assets(filename):
+    assets_dir = os.path.join(FRONTEND_DIST, "assets")
+    if not os.path.exists(assets_dir):
+        abort(404)
+    return send_from_directory(assets_dir, filename)
+
+
+@app.route("/<path:path>")
+def spa_fallback(path):
+    # Let Flask's normal routes and /api endpoints handle their own paths.
+    if path.startswith("api/"):
+        abort(404)
+
+    dist_index = os.path.join(FRONTEND_DIST, "index.html")
+    if os.path.exists(dist_index):
+        candidate = os.path.join(FRONTEND_DIST, path)
+        if os.path.isfile(candidate):
+            return send_from_directory(FRONTEND_DIST, path)
+        return send_from_directory(FRONTEND_DIST, "index.html")
+
+    abort(404)
 
 
 @app.route("/api/ask", methods=["POST"])

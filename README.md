@@ -59,6 +59,30 @@ Then open **http://127.0.0.1:5000** in your browser. That's your chat window —
 type questions, get answers grounded in your book library with page citations
 shown under each response.
 
+## Integrated frontend setup (React + Flask)
+
+The `CyberSec-Advisor` React app is now integrated with this Flask backend:
+
+- Production/runtime: Flask serves `CyberSec-Advisor/dist` automatically when built.
+- Fallback: if no React build exists yet, Flask still serves the legacy `templates/index.html` UI.
+
+Build the React frontend once (or whenever UI changes):
+
+```
+cd CyberSec-Advisor
+npm install
+npm run build
+```
+
+Optional frontend dev mode:
+
+```
+cd CyberSec-Advisor
+npm run dev
+```
+
+Vite proxies `/api/*` calls to `http://127.0.0.1:5000`, so keep `python app.py` running while developing.
+
 ## Notes
 - Conversation history resets if you restart the server (kept simple on purpose).
 - If you see "GEMINI_API_KEY is not set" in the browser, the key wasn't picked up —
