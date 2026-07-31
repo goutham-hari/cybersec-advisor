@@ -19,6 +19,8 @@ infrastructure cost.
 - 🌐 Clean browser-based chat interface
 - 🧠 Local embeddings (no per-query embedding cost)
 
+  file:///C:/Users/user/Downloads/updated%20UI.pdf
+
 ## Tech stack
 PyMuPDF · Sentence-Transformers · ChromaDB · Flask · Gemini API
 
