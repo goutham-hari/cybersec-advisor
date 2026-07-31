@@ -19,8 +19,10 @@ infrastructure cost.
 - 🌐 Clean browser-based chat interface
 - 🧠 Local embeddings (no per-query embedding cost)
 
-"C:\Users\user\Videos\Captures\cybersec-advisor - Google Chrome 7_31_2026 9_28_18 AM.png"
-"C:\Users\user\Videos\Captures\cybersec-advisor - Google Chrome 7_31_2026 9_27_27 AM.png"
+
+<img width="1920" height="1078" alt="cybersec-advisor - Google Chrome 7_31_2026 9_27_27 AM" src="https://github.com/user-attachments/assets/5e4499f8-2420-472f-8eb5-68cc23f59efd" />
+<img width="1920" height="1078" alt="cybersec-advisor - Google Chrome 7_31_2026 9_28_18 AM" src="https://github.com/user-attachments/assets/894b58af-98ae-4245-8c9c-085d20f850b8" />
+
 ## Tech stack
 PyMuPDF · Sentence-Transformers · ChromaDB · Flask · Gemini API
 
